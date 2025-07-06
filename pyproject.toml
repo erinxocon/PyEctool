@@ -1,0 +1,23 @@
+[build-system]
+requires = ["maturin>=1.9,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "pyectool"
+requires-python = ">=3.13"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+dynamic = ["version"]
+
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+
+[dependency-groups]
+dev = [
+    "ipython>=9.4.0",
+    "maturin[patchelf]>=1.9.0",
+]
