@@ -4,8 +4,8 @@ mod ec;
 // pub use self::led::LedMode;
 // mod led;
 
-// pub use self::error::Error;
-// mod error;
+pub use self::error::PyEcErr;
+mod error;
 
 use pyo3::prelude::*;
 
@@ -13,6 +13,6 @@ use pyo3::prelude::*;
 #[pymodule]
 fn pyectool(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<crate::ec::PyEc>()?;
-    // m.add_class::<crate::led::LedMode>()?;
+    m.add_class::<crate::ec::LedMode>()?;
     Ok(())
 }

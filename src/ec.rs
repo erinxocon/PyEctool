@@ -3,20 +3,103 @@ use std::string;
 
 use pyo3::prelude::*;
 use pyo3::exceptions::{PyRuntimeError, PyUnicodeDecodeError};
+use pyo3::types::PyType;
+
 use hidapi::HidApi;
 
 use ectool::{Ec, Error as EcError, Access, AccessHid};
+
+use crate::PyEcErr;
 
 fn ecerror_to_py_err(err: EcError) -> PyErr {
     PyRuntimeError::new_err(format!("EC error: {err:?}"))
 }
 
 fn hid_to_py_err(err: hidapi::HidError) -> PyErr {
-    PyRuntimeError::new_err(format!("hidapi: {err:?}"))
+    PyRuntimeError::new_err(format!("hidapi: {err}"))
 }
 
 fn string_to_py_err(err: string::FromUtf8Error) -> PyErr {
-    PyUnicodeDecodeError::new_err(format!("{err:?}"))
+    PyUnicodeDecodeError::new_err(format!("{err}"))
+}
+
+#[pyclass(eq, eq_int, rename_all = "SCREAMING_SNAKE_CASE", str)]
+#[derive(PartialEq, Debug, Copy, Clone)]
+#[repr(u8)]
+pub enum LedMode {
+    SolidColor = 0,
+    PerKey,
+    CycleAll,
+    CycleLeftRight,
+    CycleUpDown,
+    CycleOutIn,
+    CycleOutInDual,
+    RainbowMovingChevron,
+    CyclePinwheel,
+    CycleSpiral,
+    Raindrops,
+    Splash,
+    Multisplash,
+    ActiveKeys,
+    Disabled,
+    Last,
+}
+
+impl TryFrom<u8> for LedMode {
+    type Error = PyEcErr;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::SolidColor),
+            1 => Ok(Self::PerKey),
+            2 => Ok(Self::CycleAll),
+            3 => Ok(Self::CycleLeftRight),
+            4 => Ok(Self::CycleUpDown),
+            5 => Ok(Self::CycleOutIn),
+            6 => Ok(Self::CycleOutInDual),
+            7 => Ok(Self::RainbowMovingChevron),
+            8 => Ok(Self::CyclePinwheel),
+            9 => Ok(Self::CycleSpiral),
+            10 => Ok(Self::Raindrops),
+            11 => Ok(Self::Splash),
+            12 => Ok(Self::Multisplash),
+            13 => Ok(Self::ActiveKeys),
+            14 => Ok(Self::Disabled),
+            15 => Ok(Self::Last),
+            other => Err(PyEcErr::UnknownLedMode(other)),
+        }
+    }
+}
+
+#[pymethods]
+impl LedMode {
+    #[classmethod]
+    pub fn from_int(_cls: Bound<'_, PyType>, value: u8) -> PyResult<Self> {
+        Ok(Self::try_from(value)?)
+    }
+}
+
+impl fmt::Display for LedMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SolidColor => write!(f, "Solid Color"),
+            Self::PerKey => write!(f, "Per Key"),
+            Self::CycleAll => write!(f, "Cycle All"),
+            Self::CycleLeftRight => write!(f, "Cycle Left to Right"),
+            Self::CycleUpDown => write!(f, "Cycle Up to Down"),
+            Self::CycleOutIn => write!(f, "Cycle Out to In"),
+            Self::CycleOutInDual => write!(f, "Cycle Out to In Dual"),
+            Self::RainbowMovingChevron => write!(f, "Rainbow Chevron"),
+            Self::CyclePinwheel => write!(f, "Pinwheel"),
+            Self::CycleSpiral => write!(f, "Spiral"),
+            Self::Raindrops => write!(f, "Raindrops"),
+            Self::Splash => write!(f, "Splash"),
+            Self::Multisplash => write!(f, "Multisplash"),
+            Self::ActiveKeys => write!(f, "Active Keys"),
+            Self::Disabled => write!(f, "Disabled"),
+            Self::Last => write!(f, "Last"),
+        }
+    }
 }
 
 #[pyclass(unsendable, str)]
@@ -88,12 +171,14 @@ impl PyEc {
         unsafe { self.ec.led_set_value(index, value).map_err(ecerror_to_py_err) }
     }
 
-    pub fn led_get_mode(&mut self, layer: u8) -> PyResult<(u8, u8)> {
-        unsafe { self.ec.led_get_mode(layer).map_err(ecerror_to_py_err) }
+    pub fn led_get_mode(&mut self, layer: u8) -> PyResult<(LedMode, u8)> {
+        let result = unsafe { self.ec.led_get_mode(layer).map_err(ecerror_to_py_err)? };
+        let mode = LedMode::try_from(result.0)?;
+        Ok((mode, result.1))
     }
 
-    pub fn led_set_mode(&mut self, layer: u8, mode: u8, speed: u8) -> PyResult<()> {
-        unsafe { self.ec.led_set_mode(layer, mode, speed).map_err(ecerror_to_py_err) }
+    pub fn led_set_mode(&mut self, layer: u8, mode: LedMode, speed: u8) -> PyResult<()> {
+        unsafe { self.ec.led_set_mode(layer, mode as u8, speed).map_err(ecerror_to_py_err) }
     }
 
     pub fn led_get_color(&mut self, index: u8) -> PyResult<(u8, u8, u8)> {

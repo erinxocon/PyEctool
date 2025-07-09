@@ -4,11 +4,11 @@ use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 
 #[derive(Debug)]
-pub enum Error {
+pub enum PyEcErr {
     UnknownLedMode(u8),
 }
 
-impl fmt::Display for Error {
+impl fmt::Display for PyEcErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::UnknownLedMode(value) => write!(f,"Unknown Led Mode: {value}"),
@@ -16,10 +16,10 @@ impl fmt::Display for Error {
     }
 }
 
-impl From<Error> for PyErr {
-    fn from(err: Error) -> PyErr {
+impl From<PyEcErr> for PyErr {
+    fn from(err: PyEcErr) -> PyErr {
         match err {
-            Error::UnknownLedMode(_) => PyValueError::new_err(err.to_string()),
+            PyEcErr::UnknownLedMode(_) => PyValueError::new_err(err.to_string()),
         }
     }
 }
