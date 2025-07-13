@@ -1,0 +1,18 @@
+[package]
+name = "ectool-py"
+version = "0.1.0"
+edition = "2024"
+description = "Python wrapper+ for the System76 EC tool"
+license = "MIT"
+repository = "https://github.com/erinxocon/PyEctool"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "pyectool"
+crate-type = ["cdylib"]
+
+[dependencies]
+hidapi = { version = "1.5.0", default-features = false, features = ["linux-shared-hidraw"] }
+pyo3 = "0.25.0"
+pyo3-log = "0.12.4"
+system76_ectool = { version = "0.3.8", features = ["hidapi"] }
