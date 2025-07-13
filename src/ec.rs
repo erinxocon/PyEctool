@@ -199,8 +199,3 @@ impl fmt::Display for PyEc {
         write!(f, "System76 EC [{} / {}]", self.board, self.version)
     }
 }
-
-// put this somewhere else??
-pub trait Syncable {
-    fn sync(&mut self, ec: &mut PyEc) -> PyResult<()>;
-}

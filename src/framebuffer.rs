@@ -3,7 +3,34 @@ use std::fmt::Write;
 
 use pyo3::prelude::*;
 
-use crate::{Led, PyEc, Syncable};
+use crate::{Led, PyEc};
+
+#[pyclass(eq, rename_all = "SCREAMING_SNAKE_CASE", str)]
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum RenderMode {
+    TopBottom,
+    BottomTop,
+    LeftRight,
+    RightLeft,
+    OutsideIn,
+    InsideOut,
+    MiddleOut,
+}
+
+impl fmt::Display for RenderMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TopBottom => write!(f, "Top to Bottom"),
+            Self::BottomTop => write!(f, "Bottom to Top"),
+            Self::LeftRight => write!(f, "Left to Right"),
+            Self::RightLeft => write!(f, "Right to Left"),
+            Self::OutsideIn => write!(f, "Outside to In"),
+            Self::InsideOut => write!(f, "Inside to Out"),
+            Self::MiddleOut => write!(f, "Middle to Out"),
+        }
+    }
+}
+
 
 #[pyclass(str)]
 #[derive(Debug)]
@@ -11,9 +38,9 @@ pub struct FrameBuffer {
     #[pyo3(get)]
     leds: Vec<Vec<Led>>,
     #[pyo3(get)]
-    width: u8,
+    width: usize,
     #[pyo3(get)]
-    height: u8,
+    height: usize,
     #[pyo3(get)]
     num_leds: usize,
 }
@@ -26,14 +53,14 @@ impl FrameBuffer {
             .into_iter()
             .map(|row| {
                 row.into_iter()
-                    .filter(|&idx| idx != 255)
+                    // .filter(|&idx| idx != 255)
                     .map(|idx| Led::new(idx,0,0,0))
                     .collect()
             })
             .collect();
 
-        let height = leds.len() as u8;
-        let width = leds.iter().map(|row| row.len()).max().unwrap_or(0) as u8;
+        let height = leds.len();
+        let width = leds.iter().map(|row| row.len()).max().unwrap_or(0);
         let num_leds = leds.iter().map(|row| row.len()).sum::<usize>();
         Self { leds, width, height, num_leds }
     }
@@ -68,9 +95,12 @@ impl FrameBuffer {
         self.leds.iter().flatten().cloned().collect()
     }
 
-    pub fn render(&mut self, ec: Bound<'_, crate::PyEc>) -> PyResult<()> {
+    pub fn render(&mut self, ec: Bound<'_, crate::PyEc>, mode: Option<RenderMode>, reverse: Option<bool>) -> PyResult<()> {
+        let _mode = mode.unwrap_or(RenderMode::BottomTop);
+        let _reverse = reverse.unwrap_or(false);
+
         let mut ec_ref = ec.try_borrow_mut()?;
-        self.sync(&mut ec_ref)
+        self.sync(&mut ec_ref, _mode, _reverse)
     }
 }
 
@@ -96,13 +126,52 @@ impl fmt::Display for FrameBuffer {
 
 }
 
-impl Syncable for FrameBuffer {
-    fn sync(&mut self, ec: &mut PyEc) -> PyResult<()> {
-        for row in &mut self.leds {
-            for led in row {
-                led.sync(ec)?;
-            }
+#[macro_export]
+macro_rules! either_iter {
+    ($var:ident : $iter:expr, $rev:expr) => {
+        let $var = if $rev {
+            ::either::Either::Right($iter.rev())
+        } else {
+            ::either::Either::Left($iter)
+        };
+    };
+}
+
+impl FrameBuffer {
+    fn sync(&mut self, ec: &mut PyEc, mode: RenderMode, reverse: bool) -> PyResult<()> {
+
+        match mode {
+            RenderMode::TopBottom => {
+                for row in &mut self.leds {
+                    either_iter!(iter: row.iter_mut(), reverse);
+                    for led in iter {
+                        led.sync(ec)?;
+                    }
+                }
+            },
+            RenderMode::BottomTop => {
+                for row in &mut self.leds.iter_mut().rev() {
+                    either_iter!(iter: row.iter_mut(), reverse);
+                    for led in iter {
+                        led.sync(ec)?;
+                    }
+                }
+            },
+            RenderMode::LeftRight => {
+                for col in 0..self.width {
+                    for row in 0..self.height{
+                        let mut led = self.leds[row][col];
+                        led.sync(ec)?
+                    }
+                }
+            },
+            RenderMode::RightLeft => todo!(),
+            RenderMode::OutsideIn => todo!(),
+            RenderMode::InsideOut => todo!(),
+            RenderMode::MiddleOut => todo!(),
         }
+
         Ok(())
     }
+
 }

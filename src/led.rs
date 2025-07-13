@@ -2,7 +2,7 @@ use std::fmt;
 
 use pyo3::{prelude::*, types::PyType};
 
-use crate::{Syncable, PyEcErr};
+use crate::{PyEcErr};
 
 fn hex_to_rgb(hex: u32) -> Result<(u8, u8, u8), PyEcErr> {
     if hex > 0xFFFFFF {
@@ -65,6 +65,16 @@ impl Led {
     }
 }
 
+impl Led {
+    pub fn sync(&mut self, ec: &mut crate::PyEc) -> PyResult<()> {
+        if self.index != 255 && self.color != self.sync_color {
+                let (r, g, b) = self.sync_color;
+                ec.led_set_color(self.index, r, g, b)?;
+                self.color = self.sync_color;
+        }
+        Ok(())
+    }
+}
 
 impl fmt::Display for Led {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -79,13 +89,3 @@ impl fmt::Display for Led {
     }
 }
 
-impl Syncable for Led {
-    fn sync(&mut self, ec: &mut crate::PyEc) -> PyResult<()> {
-        if self.color != self.sync_color {
-            let (r, g, b) = self.sync_color;
-            ec.led_set_color(self.index, r, g, b)?;
-            self.color = self.sync_color;
-        }
-        Ok(())
-    }
-}
