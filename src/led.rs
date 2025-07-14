@@ -4,9 +4,9 @@ use pyo3::{prelude::*, types::PyType};
 
 use crate::{PyEcErr};
 
-fn hex_to_rgb(hex: u32) -> Result<(u8, u8, u8), PyEcErr> {
+fn hex_to_rgb(hex: u32) -> PyResult<(u8, u8, u8)> {
     if hex > 0xFFFFFF {
-        return Err(PyEcErr::ColorToLarge(hex))
+        return Err(PyEcErr::ColorToLarge(hex).into());
     }
 
     let r = ((hex >> 16) & 0xFF) as u8;
